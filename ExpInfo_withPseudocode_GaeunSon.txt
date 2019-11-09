@@ -1,0 +1,132 @@
+Experiment Information
+
+This experiment is divided into two sessions: study session and test session. In the study session, participants would see a sequence of 770 real-world scene images and respond (press space bar) whenever they detect an image rotated on its side. Each image will be shown for 1 second followed by 500 ms inter-trial-interval. Then in the test session, participants will see 700 pairs of scene images. One image in each pair is seen in the study session while the other image isn’t studied before. The participants should indicate which image is seen before the test session by pressing the Z key or / key.
+------
+
+Pseudocode
+
+
+1. Study session
+
+function [] = part1_DetectRotatedImg()
+%% This is pseudocode for the study session. A total of 770 real-world scene images would be used as stimuli. 
+% > task: to press space bar when seeing an image rotated on its side.
+% > display duration: image => 1 sec / ITI => 500 msec
+% > number of trials: 770
+% > number of blocks: 2 (about 10 min per block)
+ 
+        %% Get subject info.        
+        sbj = input('subject number? ', 's');       
+        %% Experiment setting 
+        %========Prepare images=======%        
+        imgInfo = LoadStimulusSet; % load image set here.               
+        t_pos = GetRandomTargetPosition; % get random positions among 770 trials that rotated image would be shown.              
+        img_seq(t_pos~=target) = imgInfo.memory(shuffled_idx);
+        img_seq(t_pos==target) = imgInfo.target(shuffled_idx);      
+        %=====Stimulus parameters=====%
+        img_size = 480;      
+        img_dur = 1;
+        iti_dur = 0.5;      
+        rotation = [90, -90]; % image rotation options       
+        %======Experiment matrix======%
+        emat = zeros(number_of_trials, number_of_informationType); % save responses, RTs, or any other information here       
+        n_block = 4;           
+        tpb = length(emat)/n_block; % trials per block       
+        %% Experiment start              
+        for b = 1:n_block                    
+            for i = (b-1)*tpb+1:b*tpb 
+                %--display image--%                
+                if img_seq{i} ~= target                    
+                    Screen('DrawTexture', wptr, currentImg, (center +- img_size));  
+                elseif img_seq{i} == target
+                    Screen('DrawTexture', wptr, currentImg, (center +- img_size), rotation); % 90deg rotation(cw/ccw)
+                end
+                [~, imgOnset] = Screen('Flip', wptr);                
+                %--get response--%
+                [KeyIsDown, KeyTime] = KbCheck;
+                if KeyIsDown
+                    emat(i,3) = KeyIsDown;
+                    emat(i,4) = KeyTime - imgOnset;  
+                end
+                %----ITI----%
+                Screen('DrawTexture', wptr, greyRect, center);
+                Screen('Flip', wptr, imgOnset + img_dur);
+                WaitSecs(iti_dur);
+            end
+            % btw-block instrcution
+            if b ~= n_block
+                Btext = 'Take a break and press space to start the next block';
+            else
+                Btext = 'End';
+            end
+            DrawFormattedText(wptr, Btext, 'center', 'center', [0 0 0]);
+            Screen('Flip', wptr);
+        end
+        % save information under file name with subject number and date.
+        matfile = fullfile('data', dir, strcat(sbj, datestr(now(), '.yyyy-mm-dd.HH_MM_SS'), '.mat'));
+        save(matfile, 'emat', 'img_seq');
+        Screen('CloseAll');  
+   
+end
+
+
+
+2. Test session
+
+function [] = part2_SceneRecognition()
+%% This is pseudocode for the test session. A total of 700 image pairs (studied&unstudied) would be used as stimuli. 
+% > task: select an image you have seen before in this experiment. 
+%         Press Z for the left image, or press / for the right image.
+% > display duration: until response but at most 10 seconds.
+% > number of trials: 700
+% > number of blocks: 5
+ 
+        %% Get subject info.
+        sbj = input('subject number? ', 's');        
+        %% Experiment setting
+	%=======Stimuli setting========%        
+        img_pair = Load_pairInfo_here; % image pair information which should be the same to all participants.
+        % display parameters      
+        img_size = 480;
+        location = {left image location, right image location};
+        %======Experiment matrix=======%       
+        emat = zeros(number_of_trials, number_of_informationType); % save responses, RTs, or any other information here 
+        n_block = 5;
+        tpb = length(emat)/n_block; % trial per block               
+        %% Experiment start        
+        for b = 1:n_block
+            for i = (b-1)*tpb+1:b*tpb 
+                %=====image display=====%
+                curr_memo = Screen('MakeTexture', wptr, img_pair{1});
+                curr_lure = Screen('MakeTexture', wptr, img_pair{2});
+                if studiedImg == left
+                    Screen('DrawTexture', wptr, curr_memo, [], location{1});
+                    Screen('DrawTexture', wptr, curr_lure, [], location{2});
+                elseif studiedImg == right
+                    Screen('DrawTexture', wptr, curr_memo, [], location{2});
+                    Screen('DrawTexture', wptr, curr_lure, [], location{1});
+                end
+                Screen('Flip', wptr);
+                %======get response=====%
+                [rkey, rt] = expkey([KbName('z'), KbName('/?')], [], [], 10);
+                emat(i,3) = rkey;
+                emat(i,4) = rt;               
+            end
+            %===btw-block instruction===%
+            if b ~=n_block
+                btext = 'Take a break and press space to start the next block';
+            else
+                btext = 'Thank you for participation';
+            end
+            DrawFormattedText(wptr, btext, 'center', 'center', [0 0 0]);
+            Screen('Flip', wptr);
+        end
+        %=============save==============%
+        matfile = fullfile('data', 'memory_main', strcat(sbj, datestr(now(), '.yyyy-mm-dd.HH_MM_SS'), '.mat'));
+        save(matfile, 'emat', 'img_pair');
+        Screen('CloseAll');
+ 
+end
+
+ 
+
